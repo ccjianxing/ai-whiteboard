@@ -24,9 +24,9 @@ jobs:
       PORT: '9097'
       WB_NO_TOKEN: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
@@ -95,7 +95,7 @@ jobs:
     name: 仓库里没有跟着提交密钥与运行状态
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: .gitignore 仍然挡着密钥与运行状态
         run: |
@@ -125,7 +125,7 @@ jobs:
     name: docker build
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: 镜像能构建，且容器里服务能起来
         run: |
           set -e
