@@ -64,6 +64,10 @@ And then four one-click follow-ups:
 > draw; when the meeting ends you already have the plan, the diagram and the todos.
 >
 > ![Interface](docs/board.png)
+>
+> *A still of the UI: bottom-left is the discussion panel (5 transcript lines with decision / risk / todo / dependency
+> tags, plus a "these two devices sound like the same person" warning); on the canvas is the flowchart that grew while
+> the discussion was running; the red dashed circle is what "🎯 Circle risks" marked.*
 
 ## 30-second quick start
 
