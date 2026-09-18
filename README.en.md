@@ -2,6 +2,9 @@
 
 > [中文](README.md) ｜ **English**
 
+[![ci](https://github.com/ccjianxing/ai-whiteboard/actions/workflows/ci.yml/badge.svg)](https://github.com/ccjianxing/ai-whiteboard/actions/workflows/ci.yml)
+&nbsp;Python 3.8+ &nbsp;·&nbsp; MIT &nbsp;·&nbsp; zero dependencies (standard library only)
+
 **A whiteboard shared by you and your own AI agent.**
 
 Not "yet another drawing tool with AI bolted on" — the point is: **one person uses the board, and their own agent joins

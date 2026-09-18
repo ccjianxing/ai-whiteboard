@@ -2,6 +2,9 @@
 
 > **中文** ｜ [English](README.en.md)
 
+[![ci](https://github.com/ccjianxing/ai-whiteboard/actions/workflows/ci.yml/badge.svg)](https://github.com/ccjianxing/ai-whiteboard/actions/workflows/ci.yml)
+&nbsp;Python 3.8+ &nbsp;·&nbsp; MIT &nbsp;·&nbsp; 零依赖（纯标准库）
+
 **一块你和你的 AI agent 共用的白板。**
 
 不是"又一个带 AI 的画图工具"——而是：**一个人主用，他自己的 agent 加入画板**。
