@@ -115,7 +115,8 @@ jobs:
       - name: 代码里没有真密钥
         run: |
           set -e
-          if git grep -nE 'sk-[A-Za-z0-9_-]{20,}|tp-[A-Za-z0-9_-]{20,}|BEGIN [A-Z ]*PRIVATE KEY' -- . ; then
+          # 排除 .github：这个 workflow 自己就写着这些模式串（它正是用来查它们的）
+          if git grep -nE 'sk-[A-Za-z0-9_-]{20,}|tp-[A-Za-z0-9_-]{20,}|BEGIN [A-Z ]*PRIVATE KEY' -- . ':(exclude).github' ; then
             echo "上面这些看起来像真密钥，请确认后改成从环境变量/ai_config.json 读"; exit 1
           fi
           echo "OK"
