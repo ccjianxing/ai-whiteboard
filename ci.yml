@@ -1,0 +1,141 @@
+name: ci
+
+# CI 只跑那些"不需要任何 key、不需要浏览器"的部分 —— 但这些恰好是最容易悄悄坏掉的：
+#   · 服务能起来、页面能发出来（Python 3.8 与 3.12 各跑一遍：部署机常常是 3.8）
+#   · **静态文件白名单没被改坏**：密钥 / 账号 / 令牌 / 私钥必须一律 404（这是本项目历史上最严重的一个洞）
+#   · 公开入口（join.md / llms.txt / agent.json）仍然读得到（别把 agent 挡在门外）
+#   · 工具数量没变（46 个画板工具 / 51 个 MCP 工具）
+#   · 仓库里没有跟着提交私密文件与真密钥
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: smoke (python ${{ matrix.python }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.8', '3.12']
+    env:
+      PORT: '9097'
+      WB_NO_TOKEN: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: 语法检查（部署机是 3.8，所以这里也用它跑一遍）
+        run: |
+          python -V
+          python -m compileall -q .
+
+      - name: 起服务（零配置、不填任何 key）
+        run: |
+          python server_v2.py > server.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:9097/api/health > /dev/null; then echo "服务就绪"; exit 0; fi
+            sleep 1
+          done
+          echo "服务没起来，日志："; cat server.log; exit 1
+
+      - name: 能力自述与工具清单
+        run: |
+          set -e
+          curl -s http://127.0.0.1:9097/api/health | jq -e '.ok == true and (.mode | type == "string")' > /dev/null
+          echo "health: $(curl -s http://127.0.0.1:9097/api/health | jq -c '{mode,ai,speech}')"
+          n=$(curl -s http://127.0.0.1:9097/api/tools | jq '.tools | length')
+          echo "画板工具：$n"; [ "$n" = "46" ]
+          m=$(curl -s -X POST http://127.0.0.1:9097/mcp -H 'Content-Type: application/json' \
+                -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools | length')
+          echo "MCP 工具：$m"; [ "$m" = "51" ]
+
+      - name: 页面能发出来，而且不是目录清单
+        run: |
+          set -e
+          curl -sf http://127.0.0.1:9097/board.html -o page.html
+          grep -q '<main id="main">' page.html          # 页面本体
+          grep -q 'function asrFbStart' page.html       # 语音兜底那一路还在
+          grep -q 'function attachUpload' page.html     # 附件上传那一路还在
+          curl -sf http://127.0.0.1:9097/ > root.html
+          grep -q '<!DOCTYPE' root.html
+          ! grep -qi 'directory listing\|Index of' root.html
+
+      - name: 私密文件必须 404（静态白名单）
+        run: |
+          set -e
+          for p in ai_config.json wb_token.txt users.json sync_state.json chat.json disc.json \
+                   docs.json todos.json wb.key wb.crt server_v2.py mcp_server.py .gitignore \
+                   ../server_v2.py %2e%2e/server_v2.py; do
+            code=$(curl -s --path-as-is -o /dev/null -w '%{http_code}' "http://127.0.0.1:9097/$p")
+            echo "/$p -> $code"
+            [ "$code" = "404" ] || { echo "!! /$p 竟然能取到（$code）：静态文件白名单被改坏了"; exit 1; }
+          done
+
+      - name: 公开入口仍然可读（别把 agent 挡在门外）
+        run: |
+          set -e
+          for p in join.md llms.txt .well-known/agent.json; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:9097/$p")
+            echo "/$p -> $code"; [ "$code" = "200" ]
+          done
+          curl -s http://127.0.0.1:9097/join.md | grep -q '/api/agent/hello'
+          curl -s http://127.0.0.1:9097/.well-known/agent.json | jq -e '.mcp or .endpoints' > /dev/null
+
+      - name: 失败时打印服务日志
+        if: failure()
+        run: tail -60 server.log || true
+
+  repo-hygiene:
+    name: 仓库里没有跟着提交密钥与运行状态
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .gitignore 仍然挡着密钥与运行状态
+        run: |
+          set -e
+          for k in ai_config.json wb_token.txt users.json sync_state.json chat.json disc.json docs.json todos.json '*.bak' '*.log'; do
+            grep -q -- "$k" .gitignore || { echo ".gitignore 少了：$k"; exit 1; }
+          done
+          echo "OK"
+
+      - name: 没有被跟踪的私密文件
+        run: |
+          set -e
+          bad=$(git ls-files | grep -E '(^|/)(ai_config\.json|wb_token\.txt|users\.json|sync_state[^/]*\.json|chat\.json|disc\.json|docs\.json|todos\.json|web_rules\.json|wb\.(key|crt))$' || true)
+          if [ -n "$bad" ]; then echo "这些私密文件被提交了："; echo "$bad"; exit 1; fi
+          echo "OK"
+
+      - name: 代码里没有真密钥
+        run: |
+          set -e
+          if git grep -nE 'sk-[A-Za-z0-9_-]{20,}|tp-[A-Za-z0-9_-]{20,}|BEGIN [A-Z ]*PRIVATE KEY' -- . ; then
+            echo "上面这些看起来像真密钥，请确认后改成从环境变量/ai_config.json 读"; exit 1
+          fi
+          echo "OK"
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: 镜像能构建，且容器里服务能起来
+        run: |
+          set -e
+          docker build -t ai-whiteboard:ci .
+          docker run -d --name wb -p 9098:9091 -e WB_NO_TOKEN=1 ai-whiteboard:ci
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:9098/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:9098/api/health | jq -e '.ok == true' > /dev/null
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9098/wb_token.txt)
+          echo "/wb_token.txt -> $code"; [ "$code" = "404" ]
+          docker logs wb | tail -20
+          docker rm -f wb
