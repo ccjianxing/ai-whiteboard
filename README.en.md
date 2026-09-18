@@ -30,6 +30,7 @@ what was mentioned in the discussion but is still missing from the diagram.*
 | | In one line |
 |---|---|
 | 🎙 **Meetings produce artefacts** | **Discussion mode** transcribes while it listens, tags the important sentences, and turns the whole thing into a written plan, a diagram and a todo list in one click. Others hand you a whiteboard; this hands you the **meeting → diagram → todos** pipeline. |
+| 🗣 **Voice that listens to a whole meeting** | Not just speech-to-text: it **tells speakers apart** (by voiceprint), **merges several devices onto one board**, **lets you replay each segment**, and tags decisions/risks/todos while it listens. If recognition fails it falls back to the browser and says which engine produced the line. |
 | 🤖 **Your agent lives on the same board** | It installs nothing on your machine — it fetches `http://<your-board>/join.md` and it is in. It hears what you say on the board, and everything it draws carries a **green "A" badge**. |
 | 📄 **Drop a plan in, get a diagram** | Drag a `.md/.txt/.json` into the chat box; the AI/agent reads it first, then draws it. Long documents are read in line ranges so the context window survives. |
 | 👥 **Simultaneous drawing without clobbering** | Not whole-board overwrite but **per-element merge**: everyone draws, nothing gets overwritten, deletions come back as tombstones, real collisions are reported. |
@@ -68,6 +69,29 @@ And then four one-click follow-ups:
 > *A still of the UI: bottom-left is the discussion panel (5 transcript lines with decision / risk / todo / dependency
 > tags, plus a "these two devices sound like the same person" warning); on the canvas is the flowchart that grew while
 > the discussion was running; the red dashed circle is what "🎯 Circle risks" marked.*
+
+## Voice: not an input box — a board that listens and speaks
+
+On most whiteboards "voice" means: click, say one sentence, get one word. Here it works on two levels: **talking to it**,
+and **letting it listen to a whole meeting**.
+
+| Capability | What it does |
+|---|---|
+| 🎤 **Stops by itself** | 1.3 s of silence ends the recording and sends it (no second click); a 30 s cap protects you; audio is converted to 16 kHz mono WAV before recognition |
+| 🔁 **Hands-free conversation** | With "continuous" on, the microphone **reopens automatically after the AI finishes reading its reply** — a back-and-forth like a phone call, no clicking |
+| ✋ **Barge-in** | The moment you start speaking, the AI **stops reading aloud immediately** — it never talks over you |
+| 🗣 **Meeting-grade transcription** | Discussion mode keeps listening: 1.8 s of silence closes a segment, you can pause, and the panel collapses into a pill so it never blocks the canvas |
+| 👥 **It knows who is talking** | Each segment is fingerprinted (pitch / spectral centroid / zero-crossing rate) and clustered into **up to 4 speakers**, names editable; **several devices each contribute a track to the same board**, and it warns when "these two devices sound like the same person" |
+| ⏪ **Every segment is replayable** | The recording of each segment is kept: click "▶ listen to this one" in the panel, or **hear it in sync while replaying the canvas timeline** |
+| 🏷 **Tagging while listening** | Transcripts are tagged as they arrive: 🟢 decision / 🔴 risk / 🔵 todo / 🟠 question / 🟣 dependency |
+| 🔊 **Read-aloud costs nothing by default** | Browser-local speech synthesis: no quota, works offline, no key. Point `tts_model` at your own TTS if you prefer server-side |
+| 🛟 **Not tied to one vendor** | Server-side recognition uses **your** gateway (`asr_model`); when it is out of quota, unreachable or unconfigured the page falls back to the **browser's own recognition** and says so — **no silent downgrade** |
+| 🔒 **HTTPS required** | Browsers only expose the microphone in a secure context; over plain HTTP the page tells you and offers a one-click switch to `https://…:9443` |
+
+> The demo GIF above is **silent**: in real use those transcript lines appearing in the discussion panel come from you
+> talking into the microphone.
+> Where the audio goes: server-side recognition sends it to the speech gateway you configure; the browser fallback uses
+> the browser vendor's online service. See `SECURITY.md`.
 
 ## 30-second quick start
 
@@ -169,7 +193,7 @@ cp ai_config.example.json ai_config.json   # then fill in api_key
 | History that survives | **conversation, discussion transcript and uploads are persisted per board** (`chat.json` / `disc.json` / `docs.json`) — restart the service or open the board from another device |
 | Collaboration | several people on one board (`?board=xxx` link), **element-level merge: everyone draws without overwriting each other** |
 | Accounts | register / sign in → everyone gets their own board, **and their agent garrisons that board**; invite links bring others in |
-| Voice | microphone → server-side recognition (**HTTPS required**); **if the server side is unavailable the browser's own recognition takes over and the UI says so** |
+| Voice | Stops by itself, **hands-free continuous mode**, **barge-in**; **speaker separation**, several devices merged onto one board, per-segment replay (see the Voice section above); falls back to browser recognition and says so |
 | Export | PNG / SVG / PDF / JSON / Mermaid / PlantUML |
 
 ### Why simultaneous editing does not clobber itself
