@@ -1,0 +1,18 @@
+{
+  "_说明": "复制成 ai_config.json 再填。这一步是可选的 —— 不填也能完整使用，只是白板会进入「纯 agent 模式」：没有内置 AI，由你自己的 agent（通过 MCP）来驱动和应答。",
+
+  "base_url": "https://api.deepseek.com/v1",
+  "model": "deepseek-chat",
+  "api_key": "",
+
+  "_视觉说明": "看画布截图的能力。留空则视觉通道关闭（AI 看不到图，但画板本身照常用）。",
+  "vision_base_url": "",
+  "vision_model": "",
+  "vision_api_key": "",
+
+  "_语音说明": "asr = 语音识别（把你说的话转成文字）。tts 留空即可：朗读已改由浏览器本地 speechSynthesis 完成，不需要任何 key。",
+  "asr_model": "",
+  "speech_base_url": "",
+  "speech_api_key": "",
+  "tts_model": ""
+}

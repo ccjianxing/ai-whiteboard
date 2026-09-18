@@ -1,0 +1,26 @@
+# AI 白板 —— docker compose（一条命令起来）
+#   docker compose up -d
+#   浏览器打开 http://127.0.0.1:9091/board.html
+#
+# 说明：
+# · 状态文件（画布/待办/账号/令牌）写在 /app，挂到 ./data 才不会随容器重建丢失
+# · 容器里没有 Edge/Chrome，网页截图功能不可用（不影响其它功能）
+# · ai_config.json 可选：不配 = 纯 agent 模式；要配就把下面两行注释打开
+services:
+  whiteboard:
+    build: .
+    container_name: ai-whiteboard
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+      # 语音需要 HTTPS：生成证书后把下面这行和 WB_TLS_* 打开
+      # - "9443:9443"
+    environment:
+      PORT: "9091"
+      WB_TRUST_LAN: "1"          # 内网免令牌；公网部署请去掉这一行
+      # WB_TLS_PORT: "9443"
+      # WB_TLS_CERT: "/app/wb.crt"
+      # WB_TLS_KEY: "/app/wb.key"
+    volumes:
+      - ./data:/app
+      # - ./ai_config.json:/app/ai_config.json:ro

@@ -1,0 +1,55 @@
+# ===== 密钥 / 隐私：绝对不能进仓库 =====
+ai_config.json
+wb_token.txt
+users.json
+wb.key
+wb.crt
+.env
+
+# ===== 运行时生成的状态（备份这几个就够：sync_state / chat / disc / docs / todos / users）=====
+sync_state.json
+sync_state.dropped.json
+chat.json
+disc.json
+docs.json
+todos.json
+last_state.json
+monitor_state.json
+notify.json
+latest_screenshot.txt
+验证历史.jsonl
+AI工具自检日志.txt
+web_rules.json
+server.pid
+server.out.log
+server_err.log
+server_v2.out.log
+server_v2.err.log
+srv.out.log
+srv.err.log
+agentopen.out.log
+agentopen.err.log
+mcpopen.out.log
+mcpopen.err.log
+
+# ===== 输出目录 =====
+screenshots/
+records/
+data/
+发布/
+
+# ===== 临时产物 =====
+__pycache__/
+*.pyc
+*.log
+*.err
+*.out
+# 下划线开头的一律是临时/补丁脚本（含 _本地服务.err、_工具清单.json 这类）
+_*
+_wb_*
+
+# ===== 备份与留底（里面常有被删掉的密钥/账号，实测最容易漏）=====
+*.bak
+*.bak-*
+*.dropped.json
+backup-before-opensource/
