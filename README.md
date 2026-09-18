@@ -316,6 +316,12 @@ done
   界面上会写清是哪一个。
 - **静态文件只发白名单**（页面与截图），其余一律 404 —— 这是刻意设计，改这段代码前先读上面的「自己验证」。
 
+## 作者
+
+**ccjianxing** —— https://github.com/ccjianxing/ai-whiteboard
+
+问题、建议、PR 都欢迎开在仓库里（Issue）。
+
 ## License
 
 MIT

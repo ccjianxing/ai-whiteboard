@@ -2,6 +2,8 @@
 #   docker compose up -d
 #   浏览器打开 http://127.0.0.1:9091/board.html
 #
+# 作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
+#
 # 说明：
 # · 状态文件（画布/待办/账号/令牌）写在 /app，挂到 ./data 才不会随容器重建丢失
 # · 容器里没有 Edge/Chrome，网页截图功能不可用（不影响其它功能）

@@ -328,6 +328,12 @@ done
 - **Static files are an explicit allowlist** (the page and the screenshot); everything else is 404 by design. Read the
   "Checking that it works" section before changing that code.
 
+## Author
+
+**ccjianxing** — https://github.com/ccjianxing/ai-whiteboard
+
+Issues and pull requests are welcome.
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE).

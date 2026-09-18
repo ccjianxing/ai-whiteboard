@@ -1,4 +1,5 @@
 # AI 白板 —— 纯 Python 标准库，无需 pip install
+# 作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
 FROM python:3.11-slim
 
 WORKDIR /app

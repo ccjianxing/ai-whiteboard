@@ -1,23 +1,36 @@
-"""AI白板后端 v2 —— 统一 LLM 链路（意图判断 + 元素生成 + 视觉理解）
+# AI 白板 · 后端（server_v2.py）—— 纯 Python 标准库，零依赖
+# 作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
+"""AI 白板后端 —— 一个进程搞定画布协作、账号、对话、讨论、附件、MCP 桥与（可选的）模型调用。
 
-相对 server.py 的改动：
-  1. API Key 不再硬编码：读环境变量 AI_API_KEY / MIMO_API_KEY，或同目录 ai_config.json
-  2. 恢复 TLS 证书校验（原版 verify_mode=CERT_NONE 有中间人风险）
-  3. 新增 POST /api/ai/act —— 一次调用完成「意图判断 + 画图元素生成」，并支持画布截图（视觉）
-  4. POST /api/ai/draw 优先用 LLM 生成元素 JSON，失败再回落原模板引擎
-  5. GET /api/health 探活；端口占用时给出明确提示
-  6. 多轮上下文（前端可传 history）
+组成：
+  · 画布同步：元素级合并（deltas + 墓碑 + 每元素改动时刻），多人同时画互不覆盖
+  · 账号与板：注册/登录后每人一块自己的板；agent 归属、对话、附件都按板隔离
+  · 对话：用户与 agent 共用一条消息流（MCP 的 board_chat_* 就是读写它）
+  · 讨论：录音转写（/api/ai/asr）、多设备汇总（/api/disc/*）、关键内容标记
+  · 附件：把方案文本按板存下来，供 AI / agent 按行读取（24 小时过期）
+  · MCP：GET/POST /mcp，把 46 个画板工具 + 3 个对话工具 + 2 个附件工具暴露给任意 agent
+  · 静态文件：**只发白名单**（页面 / 与 docs/），其余一律 404 —— 见 Handler.STATIC_OK
 
-启动：
-    # Windows PowerShell
-    $env:AI_API_KEY = "tp-你的新key"
+启动（不需要任何配置，此时是"纯 agent 模式"：内置 AI 不参与，等 agent 接入）：
     python server_v2.py
+    # 浏览器打开 http://127.0.0.1:9091/board.html
 
-可选环境变量：
-    AI_BASE_URL      默认 https://token-plan-cn.xiaomimimo.com/v1
-    AI_MODEL         默认 mimo-v2.5-pro   （纯文本：分析/闲聊）
-    AI_VISION_MODEL  默认 mimo-v2.5       （支持图像输入：看画布截图）
-    PORT             默认 9091
+想启用内置 AI / 语音：把 ai_config.example.json 复制成 ai_config.json，填上你自己的 key：
+    base_url / model          文本模型（分析、整理讨论、生成图形 JSON）
+    vision_model / _base_url / _api_key   视觉通道（看懂画布截图），留空 = 关闭
+    asr_model / tts_model / speech_*      语音通道，留空 = 语音输入关闭、朗读改用浏览器本地合成
+
+环境变量（优先级高于 ai_config.json）：
+    PORT              监听端口，默认 9091
+    AI_API_KEY        模型 key（等同 ai_config.json 里的 api_key）
+    AI_BASE_URL / AI_MODEL / AI_VISION_MODEL / AI_VISION_BASE_URL / AI_VISION_API_KEY
+    WB_TRUST_LAN=1    私有地址免访问令牌（内网团队共用）
+    WB_NO_TOKEN=1     完全不要令牌（仅限完全可信的隔离网络）
+    WB_TLS_PORT / WB_TLS_CERT / WB_TLS_KEY   开 HTTPS（浏览器只在安全上下文里给麦克风）
+
+安全要点（详见 SECURITY.md）：
+    · 静态文件白名单，绝不列目录；状态文件按 0600 落盘
+    · 非本机访问默认要令牌；/join.md 与 /.well-known/agent.json 有意公开（agent 自助入驻用）
 """
 import base64
 import hashlib
@@ -50,7 +63,8 @@ DEFAULTS = {
     'vision_model': '',          # 留空 = 不支持图像（不发截图）；填模型名则启用视觉通道
     'vision_base_url': '',       # 视觉通道可独立用另一家（留空 = 与 base_url 相同）
     'vision_api_key': '',
-    # 语音通道（mimo 的 asr/tts 走 chat/completions，与视觉同一家即可）
+    # 语音通道：ASR/TTS 走 chat/completions 形状（input_audio / audio 字段），
+    # 所以只要是支持这种形状的网关就能直接用；留空即关闭
     'asr_model': '',                 # 语音转文字；留空 = 关闭语音输入（要语音就填你自己的）
     'tts_model': '',                 # 文字转语音；留空 = 朗读改用浏览器本地合成
     'speech_base_url': '',           # 留空 = 跟随 vision_base_url / base_url
@@ -857,7 +871,7 @@ def tools_i18n(en=False, shape='mcp'):
                                                           'timeout': {'type': 'integer'}}}},
     ]
     # 对话工具只在 MCP 形状里附加；/api/tools 原本就是 46 个画板工具（OpenAI 形状），
-    # 加进去会破坏 mcp_server.py 与工具同步自检的既有契约
+    # 加进去会破坏 mcp_server.py 那边的既有契约（两边都按 46 个画板工具对齐）
     if shape == 'openai':
         return out
     return out + (chat_en if en else chat_cn)
@@ -3207,8 +3221,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         ck('语音输入可用（asr_model + speech key）', _asr_ok or pure,
            (CONFIG.get('asr_model') + '（已配）') if _asr_ok else
            '未配置：想要语音输入就填 asr_model + speech_base_url / speech_api_key')
-        ck('配置里没有遗留的旧网关地址',
-           'xiaomimimo.com' not in str(CONFIG.get('base_url') or ''), CONFIG.get('base_url'))
+        ck('base_url 形如 http(s)://…（填错会一直连不上）',
+           str(CONFIG.get('base_url') or '').startswith(('http://', 'https://')), CONFIG.get('base_url'))
 
         # 2) 规范
         meta = rules_meta()

@@ -2,6 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<!--
+  AI 白板 —— 一块你和你的 AI agent 共用的白板（单文件前端：全部 CSS/JS 都在这里，无框架、无构建、零外链）
+  作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
+  后端在同目录 server_v2.py（纯 Python 标准库），agent 接口是同目录 mcp_server.py
+-->
 <!-- 双保险：即使有中间层忽略服务端的 no-store，也别让浏览器拿旧页面糊弄人 -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -706,8 +711,8 @@
         <p>顶栏 <b>🌐 EN</b> 一键把界面切成英文，再点一下切回中文 —— 选择会记住。默认中文，不跟随浏览器语言。
           覆盖按钮、菜单、面板与常用提示；少数长说明与错误信息仍是中文。</p>
         <b>语音（🎤 说话 / 🔊 朗读）</b>
-        <p>点 🎤 直接说话，说完<b>自动停止</b>并发送；识别走服务端 (`mimo-v2.5-asr`)，不依赖 Google，国内网络可用。</p>
-        <p>点「朗读:开」后 AI 的回复会用 `mimo-v2.5-tts` 合成语音念出来。</p>
+        <p>点 🎤 直接说话，说完自动停止并发送；识别走服务端（asr_model 在 ai_config.json 里配），不依赖 Google，国内网络可用。</p>
+        <p>点「朗读:开」后 AI 的回复会念出来（默认用浏览器本地合成，不花额度）。</p>
         <p><b>前提</b>：浏览器只在 <b>https</b> 或 <b>127.0.0.1 / localhost</b> 下允许麦克风——用局域网 IP（如 http://192.168.x.x:9091）打开时麦克风会被浏览器禁用，请在本机用 127.0.0.1 访问，或给服务器配 HTTPS。</p>
         <b>多端协作（平板 + 电脑）</b>
         <p>顶部 <b>🔗</b> 打开同步；再点「<b>链接</b>」复制地址，在平板浏览器打开即进入<b>同一块画布</b>，双方的画/改/删实时互通（约 1 秒内）。</p>
@@ -891,7 +896,7 @@
     '带白板截图': 'With board screenshots',
     '带着里面的元素一起走': 'carry its contents along with it',
     '平移 ·': 'Pan ·',
-    '并发送；识别走服务端 (`mimo-v2.5-asr`)，不依赖 Google，国内网络可用。': 'to send. Recognition runs on the server (`mimo-v2.5-asr`), does not rely on Google, and works on domestic networks.',
+    '点 🎤 直接说话，说完自动停止并发送；识别走服务端（asr_model 在 ai_config.json 里配），不依赖 Google，国内网络可用。': 'Click 🎤 and speak — it stops and sends by itself; recognition runs on the server with the asr_model from your ai_config.json (no Google needed).',
     '底对齐': 'Align bottom',
     '建议节点': 'Suggested nodes',
     '开始批量审阅': 'Start batch review',
@@ -991,7 +996,7 @@
     '激光笔（L）：鼠标变成红点，松手自动淡出': 'Laser pointer (L): the cursor becomes a red dot that fades out when you release',
     '激活条': 'Activation bar',
     '点 🎤 直接说话，说完': 'click 🎤 to speak, and when you finish',
-    '点「朗读:开」后 AI 的回复会用 `mimo-v2.5-tts` 合成语音念出来。': 'After you click “Read aloud: on”, AI replies are voiced with `mimo-v2.5-tts` speech synthesis.',
+    '点「朗读:开」后 AI 的回复会念出来（默认用浏览器本地合成，不花额度）。': 'With “Read aloud: on”, AI replies are spoken (browser-local synthesis by default; no quota used).',
     '点一下开始说话（自动停止），识别后直接发送': 'Click once to start speaking (it stops automatically); the transcript is sent as soon as it is recognized',
     '点一下某段': 'click a segment',
     '点击选中，': 'click to select,',
@@ -1604,7 +1609,7 @@
     if (tag === 'INPUT' || tag === 'TEXTAREA') return true;                    // 输入框里的字是用户打的
     // 关键：要连**祖先**一起看。只看自己的 id 不够 ——
     // 对话消息、toast、状态栏里的元素大多没有 id，结果用户打的字被当成界面文案换掉
-    // （实测：用户发"体检"，切英文后那条消息变成 "Health check"）。
+    // （不这么做的话：用户发「体检」，切英文后连那条消息都会变成 "Health check"）。
     if (el.closest && el.closest('#msgs, #toast, #status, #cv, [data-i18n-skip]')) return true;
     return false;
   }
@@ -4572,7 +4577,7 @@
     // 不这么做就会出现"我刚画的东西被别人的同步冲掉""我删掉的又被别人推回来"。
     // 先扫一遍：把本地改过、还没推上去的都登记进 pending。
     // 只在推送时才登记是不够的 —— 远端的推送可能比本地 400ms 防抖还先到，
-    // 那一下就会把我刚画的东西冲掉（双端实测抓到的就是这个）。
+    // 那一下就会把刚画的东西冲掉。
     collectDeltas(Date.now());
     var mine = SYNC.pending || { d: {}, t: {} };
     var myD = [], myT = [], k;
@@ -4597,7 +4602,7 @@
         // 这个页号在远端那份里不存在（两边各自给默认页随机生成了不同页号，
         // 服务端已经把它们认同成一页）。这里**不能新建一页** ——
         // 一新建，客户端就有两页，服务端的"单页认同"规则从此不再触发，
-        // 两端会永久各看一页（实测抓到的就是这个：两端 pages=2、各 1 个元素）。
+        // 两端会永久各看一页（表现为两边页数都是 2、每边各 1 个元素）。
         // 并到当前页即可：它们本来就是同一块板的默认页。
         p = curPage() || S.pages[0];
         d.p = p.id;
@@ -8402,8 +8407,7 @@
     return false;
   }
 
-    // （原来这里有一份 TOOL_DEFS 常量：声明后从未被引用，且缺了十几个已实现的工具。
-  //   工具清单以服务端 WB_TOOLS 为准，由 工具同步自检.py 保证两边一致，故删除这份死代码）
+    // 工具清单以服务端 WB_TOOLS 为准（前端只负责执行），这里不再维护第二份定义。
 
   // ============================================================
   //  7.5 补齐"AI 够不到"的能力
@@ -8501,7 +8505,7 @@
     var url = String(a.url || '').trim(), html = String(a.html || '');
     if (!url && !html) return Promise.resolve({ ok: false, changed: 0, error: '要给出网址或直接给 HTML' });
     // 服务端 mode='ai' 会同时返回静态分析 info（含 checks）和 AI 评审意见 review ——
-    // 一次调用就够。之前我漏了 mode 参数、又把字段名猜成 content，才拿到 0 字。
+    // 一次调用就够；少了 mode 参数、或把字段名取错，都会拿到 0 字。
     toast('正在抓取并评审：' + (url || '(内联 HTML)').slice(0, 46) + '…（约 7 秒）', 4000);
     return fetch('/api/review/page', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -8846,7 +8850,7 @@
       try {
         // 只有 http(s) 打开时才谈令牌。file:// 打开的页面压根连不上 API（相对路径会解析成本地文件），
         // 更不能用 window.prompt 去问 —— 那是个阻塞对话框，会让任何"给这个页面截图"的操作卡死
-        // （实测：截白板自己的页面时 CDP 超时 100 秒，就是这里弹了 prompt）。
+        // （给白板自己的页面截图时，CDP 会一直卡到超时，就是这里弹的 prompt）。
         var httpPage = (location.protocol === 'http:' || location.protocol === 'https:');
         if (httpPage && String(u).indexOf('/api/') >= 0) {
           var host = location.hostname;
@@ -9193,9 +9197,9 @@
     return AI.history.slice(start);
   }
 
-  // AI 回复朗读：改用**浏览器本地语音合成**（speechSynthesis）
-  // 以前走服务端 TTS（小米 mimo-v2.5-tts），既依赖第三方、又要联网、还出过 500；
-  // 本地合成零延迟、免费、离线可用，也不再需要任何 key。
+  // AI 回复朗读：默认用**浏览器本地语音合成**（speechSynthesis）
+  // 走服务端 TTS 意味着依赖第三方网关、必须联网、还会多一层失败点；
+  // 本地合成零延迟、免费、离线可用，也不需要任何 key（想换成自己的 TTS 可在配置里接）。
   var TTS = { on: false, audio: null, playing: false, after: null, voice: null };
   try { TTS.on = localStorage.getItem('wb2-tts') === '1'; } catch (e) {}
   function ttsSupported() { return typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined'; }
@@ -9217,7 +9221,7 @@
   // ============================================================
   //  语音识别兜底：服务端识别不可用时，用浏览器自带识别顶上
   //  为什么要有它：语音是基本功能，但服务端那份识别依赖第三方网关的额度 ——
-  //  实测网关回 429（quota exhausted）时，整条语音输入就断了，用户看到的是"识别失败"。
+  //  网关一返回 429（quota exhausted），整条语音输入就断了，用户看到的是"识别失败"。
   //  浏览器自带识别（Chrome/Edge 的 Web Speech）不用我们的 key，所以：
   //    · 录音时**同时**开一路浏览器识别（不是等失败了再补录，那时话已经说完了）；
   //    · 服务端成功就用服务端的（中文准、可换模型）；
@@ -10459,7 +10463,7 @@
     });
 
     // ============================================================
-    //  语音输入：录音 → 转 16k 单声道 WAV → 后端 ASR（mimo-v2.5-asr）
+    //  语音输入：录音 → 转 16k 单声道 WAV → 后端 ASR（ai_config.json 里的 asr_model）
     //  不再依赖浏览器自带的 Web Speech（它要连 Google，国内经常直接 network 失败）
     //  注意：浏览器麦克风只在 https 或 127.0.0.1 / localhost 下可用
     // ============================================================

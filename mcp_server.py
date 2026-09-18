@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# AI 白板 · MCP 服务器 —— 把画板能力暴露给任意 MCP 客户端
+# 作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
 """AI 白板 · MCP 服务器（stdio）
 
 把白板的能力暴露给任意 MCP 客户端（DSH / Claude Code / Cursor / …），
-**由外部 agent 来驱动画板** —— 白板不再只是"自带一个内置 AI"。
+**由外部 agent 来驱动画板**，白板本身不必内置模型。
 
 调用链：
     MCP 客户端 ──stdio JSON-RPC──> 本进程 ──HTTP──> 白板服务端 /api/agent/call
         ──> 浏览器里打开的 board.html 长轮询取任务 ──> execTool 执行 ──> 回传结果
 
-工具清单**直接从 server_v2.py 的 WB_TOOLS 解析**，不再另维护一份 ——
-之前就吃过"前端实现了却没告诉 AI"的亏（import_mermaid），这里从根上避免。
+工具清单**直接从服务端的 WB_TOOLS 取**（本地有 server_v2.py 就解析它，
+没有就向 /api/tools 要），只维护一份定义，避免"实现了却忘了告诉 AI"。
 
 用法（MCP 客户端配置里）：
     command: python
-    args: ["D:\\\\Whiteboard\\\\mcp_server.py"]
+    args: ["/absolute/path/to/mcp_server.py"]
 环境变量：
     WB_SERVER  白板服务地址，默认 http://127.0.0.1:9091
 """

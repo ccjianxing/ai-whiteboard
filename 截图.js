@@ -1,5 +1,6 @@
 /**
  * 网页截图（CDP 版）——比命令行 --screenshot 快得多，而且能截整页
+ * 作者：ccjianxing ｜ https://github.com/ccjianxing/ai-whiteboard ｜ MIT License
  *
  * 为什么不用 `msedge --screenshot`：
  *   它必须等页面的 load 事件（包含所有图片、广告、统计脚本），外网慢站动辄 20~40 秒，
